@@ -13,13 +13,13 @@ OPENWRT_KERNEL_PATH=${OPENWRT_PATH}/build_dir/target-${OPENWRT_TARGET_SYSTEM}_mu
 OPENWRT_PATCH_PATH=${OPENWRT_PATH}/target/linux/generic/hack-${OPENWRT_LINUX_VERSION}
 
 OPENWRT_SSH_HOST=root@${OPENWRT_IP}
-OPENWRT_SSH_QUECTEL=/root/quectel
+OPENWRT_SSH_PATH=/root/files
 
 PATCH_PATH=${CURRENT_PATH}/patch/${OPENWRT_LINUX_VERSION}
 
 clean:
 	cd ${CURRENT_PATH}/quectel-cm && make clean
-	rm -f ${CURRENT_PATH}/quectel-cm-files/quectel/quectel-CM
+	rm -f ${CURRENT_PATH}/quectel-cm-files/quectel/quectel-cm
 	rm -f ${CURRENT_PATH}/quectel-cm-files/quectel/quectel-qmi-proxy
 
 prepare: clone ip app config_copy config download
@@ -45,22 +45,20 @@ download:
 	cd ${OPENWRT_PATH} && make download V=s -j4
 
 build:
-	cd ${OPENWRT_PATH} && make V=s -j1
+	cd ${OPENWRT_PATH} && export GOPROXY=https://goproxy.io && make V=s -j1
 
 app:
-	cd ${OPENWRT_PATH} && ./scripts/feeds update -a && ./scripts/feeds install -a
-	cd ${OPENWRT_PATH}/package/feeds/ && mkdir -p addition &&  cp -n -r ${CURRENT_PATH}/packages/* addition/ || true
+	# cd ${OPENWRT_PATH} && ./scripts/feeds update -a && ./scripts/feeds install -a
+	cd ${OPENWRT_PATH}/package/feeds/ && mkdir -p addition && rm -rf addition/* && cp -rf ${CURRENT_PATH}/packages/* addition/ || true
 
 
-quectel_make:
-	cd ${CURRENT_PATH}/quectel-cm && make CROSS_COMPILE=`echo $(OPENWRT_PATH)/staging_dir/toolchain-*_gcc-*_musl/bin/`${OPENWRT_TARGET_SYSTEM}-openwrt-linux-
 
-quectel_debug: quectel_make
-	ssh ${OPENWRT_SSH_HOST} "rm -rf ${OPENWRT_SSH_QUECTEL}"
-	cp ${CURRENT_PATH}/quectel-cm/quectel-CM ${CURRENT_PATH}/quectel-cm-files/quectel/
-	cp ${CURRENT_PATH}/quectel-cm/quectel-qmi-proxy ${CURRENT_PATH}/quectel-cm-files/quectel/
-	scp -r ${CURRENT_PATH}/quectel-cm-files/quectel/ ${OPENWRT_SSH_HOST}:${OPENWRT_SSH_QUECTEL}
-	ssh ${OPENWRT_SSH_HOST} "${OPENWRT_SSH_QUECTEL}/quectel-CM -v"
+
+quectel_debug: app
+	ssh ${OPENWRT_SSH_HOST} "mkdir -p ${OPENWRT_SSH_PATH}/ && opkg remove quectel-cm || true"
+	cd ${OPENWRT_PATH} && make package/quectel-cm/compile -j1 V=s
+	cd ${OPENWRT_PATH} && scp bin/packages/${OPENWRT_TARGET_SYSTEM}/addition/quectel-cm*.ipk ${OPENWRT_SSH_HOST}:${OPENWRT_SSH_PATH}
+	ssh ${OPENWRT_SSH_HOST} "opkg install ${OPENWRT_SSH_PATH}/quectel-cm*.ipk"
 
 quectel_patch:
 	cd ${OPENWRT_KERNEL_PATH} && patch -p1 < ${PATCH_PATH}/999-quectel.patch
