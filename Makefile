@@ -2,7 +2,7 @@
 
 CURRENT_PATH=$(shell dirname $(realpath $(lastword $(MAKEFILE_LIST))))
 
-OPENWRT_URL=https://github.com/openwrt/openwrt.git
+OPENWRT_URL=https://github.com/coolsnowwolf/lede.git
 OPENWRT_BRANCH=master
 OPENWRT_LINUX_VERSION=5.4
 OPENWRT_TARGET_SYSTEM=x86_64
@@ -22,7 +22,7 @@ clean:
 	rm -f ${CURRENT_PATH}/quectel-cm-files/quectel/quectel-cm
 	rm -f ${CURRENT_PATH}/quectel-cm-files/quectel/quectel-qmi-proxy
 
-prepare: clone ip app config_copy config download
+prepare: clone patch1 app config_copy config download
 
 clone:
 	git clone -b ${OPENWRT_BRANCH} ${OPENWRT_URL} ${OPENWRT_PATH}
@@ -48,7 +48,7 @@ build:
 	cd ${OPENWRT_PATH} && export GOPROXY=https://goproxy.io && make V=s -j1
 
 app:
-	# cd ${OPENWRT_PATH} && ./scripts/feeds update -a && ./scripts/feeds install -a
+	cd ${OPENWRT_PATH} && ./scripts/feeds update -a && ./scripts/feeds install -a
 	cd ${OPENWRT_PATH}/package/feeds/ && mkdir -p addition && rm -rf addition/* && cp -rf ${CURRENT_PATH}/packages/* addition/ || true
 
 
